@@ -6,25 +6,33 @@ import time
 import sys
 import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
-import logging
 import requests
 import geocoder
 import asyncio
+import os
 
 from bimmer_connected.account import ConnectedDriveAccount
 from bimmer_connected.account import MyBMWAccount
 from bimmer_connected.api.regions import Regions
 from bimmer_connected.vehicle import VehicleViewDirection
 
-### Replace the following variables with values of your choice
-TOPIC = "Mobility/CarName/"
-MQTT_SERVER = "192.168.0.1"
-MQTT_PORT = 1883
-REGION = Regions.REST_OF_WORLD
+### Get the values from environment variables or use default values
+TOPIC = "Mobility/" + os.environ.get("TOPIC", "CarName") + "/"
+MQTT_SERVER = os.environ.get("MQTT_SERVER", "192.168.0.1")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+REGION = os.environ.get("REGION", "REST_OF_WORLD")
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+
+region_mapping = {
+    "NORTH_AMERICA": Regions.NORTH_AMERICA,
+    "EUROPE": Regions.EUROPE,
+    "REST_OF_WORLD": Regions.REST_OF_WORLD
+}
+REGION = region_mapping.get(REGION, Regions.REST_OF_WORLD)
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
     datefmt='%Y-%m-%d %H:%M:%S')
 
 class MQTT_Handler(object):
@@ -52,8 +60,12 @@ class MQTT_Handler(object):
         client.publish(TOPIC + "status", sw.runCmd())
 
     def run(self):
-        ### Comment in and replace user and pw if your MQTT server requires login credentials
-        #self.client.username_pw_set(username="USERNAME", password="PASSWORD")
+        # Set MQTT username and password from environment variables if they are defined
+        mqtt_username = os.environ.get("MQTT_USERNAME")
+        mqtt_password = os.environ.get("MQTT_PASSWORD")
+        if mqtt_username and mqtt_password:
+            self.client.username_pw_set(username=mqtt_username, password=mqtt_password)
+
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.will_set(self.mqtt_pub_serviceState, "Offline", retain = True)
@@ -145,3 +157,4 @@ class ServiceWrapper(object):
 
 mqtt_handler = MQTT_Handler()
 mqtt_handler.run()
+
