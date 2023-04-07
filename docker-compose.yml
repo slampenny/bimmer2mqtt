@@ -29,7 +29,7 @@ services:
     container_name: bimmer2mqtt
     build: ./bimmer2mqtt
     environment:
-      - TOPIC=CarName
+      - CAR_NAME=CarName
       - MQTT_SERVER=mqtt
       - MQTT_PORT=1883
       - REGION=NORTH_AMERICA

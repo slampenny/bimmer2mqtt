@@ -17,18 +17,21 @@ from bimmer_connected.api.regions import Regions
 from bimmer_connected.vehicle import VehicleViewDirection
 
 ### Get the values from environment variables or use default values
-TOPIC = "Mobility/" + os.environ.get("TOPIC", "CarName") + "/"
+TOPIC = "Mobility/" + os.environ.get("CAR_NAME", "1") + "/"
 MQTT_SERVER = os.environ.get("MQTT_SERVER", "192.168.0.1")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
-REGION = os.environ.get("REGION", "REST_OF_WORLD")
+REGION = os.environ.get("REGION", "ROW")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
-region_mapping = {
-    "NORTH_AMERICA": Regions.NORTH_AMERICA,
-    "EUROPE": Regions.EUROPE,
-    "REST_OF_WORLD": Regions.REST_OF_WORLD
+REGION_MAPPING = {
+    "EU": Regions.EU,
+    "US": Regions.US,
+    "CN": Regions.CN,
+    "ROW": Regions.ROW,
+    "ASIA": Regions.ASIA,
 }
-REGION = region_mapping.get(REGION, Regions.REST_OF_WORLD)
+
+REGION = REGION_MAPPING.get(REGION, Regions.REST_OF_WORLD)
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
