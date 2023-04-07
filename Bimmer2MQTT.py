@@ -62,7 +62,7 @@ class MQTT_Handler(object):
     
     def on_message(self, client, userdata, message):
         payload = str(message.payload).strip('\'').split()
-        sw = ServiceWrapper(payload[0], payload[1], payload[2], payload[3])
+        sw = self.serviceWrapper.execute_command(payload)
         result = sw.runCmd()
         if result:
             client.publish(TOPIC + "status", result)
@@ -77,49 +77,58 @@ class MQTT_Handler(object):
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
+        
+        self.service_wrapper = ServiceWrapper()
         self.client.will_set(self.mqtt_pub_serviceState, "Offline", retain = True)
         self.client.connect(self.mqtt_server, self.mqtt_port, 60)
         self.client.loop_forever()
 
 class ServiceWrapper(object):
-    def __init__(self, cmd, username, password, vin):
-        self.Cmd = cmd
-        self.User = username
-        self.Password = password
+    def __init__(self):
+        self.User = os.environ.get("BMW_USERNAME")
+        self.Password = os.environ.get("BMW_PASSWORD")
         self.Region = REGION
-        self.VIN = vin
+        self.CarName = os.environ.get("CAR_NAME")
 
-        self.account = ConnectedDriveAccount(self.User, self.Password, self.Region)
-        self.vehicle = self.account.get_vehicle(self.VIN)
-        self.vehicle.add_observer(self.on_vehicle_update)
+        # Get the VIN of the BMW vehicle associated with the specified car name
+        self.VIN = None
+        account = MyBMWAccount(self.User, self.Password, self.Region)
+        vehicles = asyncio.run(account.get_vehicles())
+        for vehicle in vehicles:
+            if vehicle.name == self.CarName:
+                self.vehicle = vehicle
+                self.VIN = vehicle.vin
+                self.vehicle.add_observer(self.on_vehicle_update)
+                break
 
         self.mqtt_pub_state = TOPIC + "state"
         self.mqtt_pub_location = TOPIC + "location"
 
-    def runCmd(self):
-        if 'state' in self.Cmd.lower() or 'status' in self.Cmd.lower():
+    def execute_command(self, payload):
+        cmd = payload[0]
+
+        if 'state' in cmd.lower() or 'status' in cmd.lower():
             return self.get_status()
-        elif 'light' in self.Cmd.lower():
+        elif 'light' in cmd.lower():
             return self.light_flash()
-        elif 'unlock' in self.Cmd.lower():
+        elif 'unlock' in cmd.lower():
             return self.unlock_doors()
-        elif 'lock' in self.Cmd.lower():
+        elif 'lock' in cmd.lower():
             return self.lock_doors()
-        elif 'air' in self.Cmd.lower():
+        elif 'air' in cmd.lower():
             return self.air_conditioning()
-        elif 'horn' in self.Cmd.lower():
+        elif 'horn' in cmd.lower():
             return self.blow_horn()
-        elif 'charge' in self.Cmd.lower():
+        elif 'charge' in cmd.lower():
             return self.charge_now()
-        elif 'location' in self.Cmd.lower():
+        elif 'location' in cmd.lower():
             return self.get_location()
         else:
             return "{ executionState : INVALID_COMMAND }"
 
     def get_vehicle(self):
-        account = MyBMWAccount(self.User, self.Password, REGION)
-        status = asyncio.run(account.get_vehicles())
-        return account.get_vehicle(self.VIN)
+        status = asyncio.run(self.account.get_vehicles())
+        return self.account.get_vehicle(self.VIN)
 
 
     def get_status(self):
