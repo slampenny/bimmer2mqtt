@@ -5,7 +5,7 @@ import json
 import time
 import sys
 import paho.mqtt.client as mqtt
-import paho.mqtt.publish as publish
+import paho.mqtt.publish as mqtt_publish
 import requests
 import geocoder
 import asyncio
@@ -59,7 +59,14 @@ class MQTT_Handler(object):
         payload = str(message.payload).strip('\'').split()
         sw = ServiceWrapper(payload[0], payload[1], payload[2], payload[3])
         client.publish(TOPIC + "status", sw.runCmd())
-
+    
+    def on_message(self, client, userdata, message):
+        payload = str(message.payload).strip('\'').split()
+        sw = ServiceWrapper(payload[0], payload[1], payload[2], payload[3])
+        result = sw.runCmd()
+        if result:
+            client.publish(TOPIC + "status", result)
+    
     def run(self):
         # Set MQTT username and password from environment variables if they are defined
         mqtt_username = os.environ.get("MQTT_USERNAME")
@@ -69,6 +76,7 @@ class MQTT_Handler(object):
 
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
+        self.client.on_message = self.on_message
         self.client.will_set(self.mqtt_pub_serviceState, "Offline", retain = True)
         self.client.connect(self.mqtt_server, self.mqtt_port, 60)
         self.client.loop_forever()
@@ -80,6 +88,13 @@ class ServiceWrapper(object):
         self.Password = password
         self.Region = REGION
         self.VIN = vin
+
+        self.account = ConnectedDriveAccount(self.User, self.Password, self.Region)
+        self.vehicle = self.account.get_vehicle(self.VIN)
+        self.vehicle.add_observer(self.on_vehicle_update)
+
+        self.mqtt_pub_state = TOPIC + "state"
+        self.mqtt_pub_location = TOPIC + "location"
 
     def runCmd(self):
         if 'state' in self.Cmd.lower() or 'status' in self.Cmd.lower():
@@ -96,6 +111,8 @@ class ServiceWrapper(object):
             return self.blow_horn()
         elif 'charge' in self.Cmd.lower():
             return self.charge_now()
+        elif 'location' in self.Cmd.lower():
+            return self.get_location()
         else:
             return "{ executionState : INVALID_COMMAND }"
 
@@ -104,10 +121,16 @@ class ServiceWrapper(object):
         status = asyncio.run(account.get_vehicles())
         return account.get_vehicle(self.VIN)
 
+
     def get_status(self):
         """Get the vehicle status."""
-        return json.dumps(self.get_vehicle().data, default=lambda o: '<not serializable>')
+        return json.dumps(self.vehicle.state, default=lambda o: '<not serializable>')
 
+    def on_vehicle_update(self, vehicle):
+        """Callback function that is called whenever the vehicle state changes."""
+        status = json.dumps(vehicle.state, default=lambda o: '<not serializable>')
+        mqtt_publish.single(self.mqtt_pub_state, status, hostname=MQTT_SERVER, port=MQTT_PORT)
+    
     def light_flash(self):
         """Trigger the vehicle to flash its lights."""
         vehicle = self.get_vehicle()
@@ -155,6 +178,18 @@ class ServiceWrapper(object):
             status = asyncio.run(vehicle.remote_services.trigger_charge_now())
             return "{ executionState : "+ status.state.value + " }"
         return "{ executionState : INVALID_VIN }"
+
+    def get_location(self):
+        """Get the vehicle's location."""
+        location = self.vehicle.drive_state.position
+        lat, lon = location['latitude'], location['longitude']
+        g = geocoder.osm([lat, lon], method='reverse')
+        address = g.address
+        location_data = {'latitude': lat, 'longitude': lon, 'address': address}
+        mqtt_payload = json.dumps(location_data)
+        mqtt_publish.single(TOPIC + "location", mqtt_payload, hostname=MQTT_SERVER, port=MQTT_PORT)
+        return "{ executionState : SUCCESS }"
+
 
 mqtt_handler = MQTT_Handler()
 mqtt_handler.run()

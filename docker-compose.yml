@@ -29,10 +29,12 @@ services:
     container_name: bimmer2mqtt
     build: ./bimmer2mqtt
     environment:
-      - CAR_NAME=1
+      - BIMMER_USERNAME=BIMMER_USERNAME
+      - BIMMER_PASSWORD=BIMMER_PASSWORD
+      - BIMMER_VIN=1
       - MQTT_SERVER=mqtt
       - MQTT_PORT=1883
-      - REGION=NA
+      - REGION=NORTH_AMERICA
       - LOG_LEVEL=INFO
     restart: always
     depends_on:
