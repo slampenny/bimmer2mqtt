@@ -90,10 +90,16 @@ class ServiceWrapper(object):
         self.Region = REGION
         self.CarName = os.environ.get("CAR_NAME")
 
+        logging.info(f"Connecting to BMW account with username {self.User} and password {self.Password}")
+        
         # Get the VIN of the BMW vehicle associated with the specified car name
         self.VIN = None
         account = MyBMWAccount(self.User, self.Password, self.Region)
         vehicles = asyncio.run(account.get_vehicles())
+        if vehicles is None:
+            logging.error("Failed to retrieve vehicles for account")
+            return
+
         for vehicle in vehicles:
             if vehicle.name == self.CarName:
                 self.vehicle = vehicle
@@ -105,6 +111,9 @@ class ServiceWrapper(object):
         self.mqtt_pub_location = TOPIC + "location"
 
     def execute_command(self, payload):
+        if self.VIN is None:
+            return "{ executionState : VEHICLE_NOT_FOUND }"
+
         cmd = payload[0]
 
         if 'state' in cmd.lower() or 'status' in cmd.lower():
