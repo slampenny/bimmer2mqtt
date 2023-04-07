@@ -25,9 +25,9 @@ services:
       - TZ=America/Vancouver
     restart: always
 
-  bimmer_script:
-    container_name: bimmer_script
-    build: ./bimmer_script
+  bimmer2mqtt:
+    container_name: bimmer2mqtt
+    build: ./bimmer2mqtt
     environment:
       - TOPIC=CarName
       - MQTT_SERVER=mqtt
