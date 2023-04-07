@@ -24,11 +24,9 @@ REGION = os.environ.get("REGION", "ROW")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
 REGION_MAPPING = {
-    "EU": Regions.EU,
-    "US": Regions.US,
-    "CN": Regions.CN,
-    "ROW": Regions.ROW,
-    "ASIA": Regions.ASIA,
+    "NORTH_AMERICA": Regions.NORTH_AMERICA,
+    "CHINA": Regions.CHINA,
+    "REST_OF_WORLD": Regions.REST_OF_WORLD,
 }
 
 REGION = REGION_MAPPING.get(REGION, Regions.REST_OF_WORLD)
