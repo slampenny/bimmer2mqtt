@@ -15,6 +15,7 @@ from bimmer_connected.account import ConnectedDriveAccount
 from bimmer_connected.account import MyBMWAccount
 from bimmer_connected.api.regions import Regions
 from bimmer_connected.vehicle import VehicleViewDirection
+from bimmer_connected.vehicle import Vehicle
 
 ### Get the values from environment variables or use default values
 TOPIC = "Mobility/" + os.environ.get("CAR_NAME", "1") + "/"
@@ -100,7 +101,8 @@ class ServiceWrapper(object):
             logging.warning(f"MyBMW API error: {e}")
             return
 
-        self.vehicle = account.get_vehicle(self.VIN)
+        vehicle = account.get_vehicle(self.VIN)
+        self.vehicle = Vehicle(vehicle.drive_train, account, vehicle.vin, vehicle.name, vehicle.model, vehicle.model_year, vehicle.vin, vehicle.implementation, vehicle.is_connected_drive_enabled)
         self.vehicle.add_observer(self.on_vehicle_update)
 
         self.mqtt_pub_state = TOPIC + "state"
