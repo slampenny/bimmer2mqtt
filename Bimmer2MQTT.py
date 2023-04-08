@@ -100,7 +100,7 @@ class ServiceWrapper(object):
             logging.warning(f"MyBMW API error: {e}")
             return
 
-        self.vehicle = account.getVehicle(self.VIN)
+        self.vehicle = account.get_vehicle(self.VIN)
         self.vehicle.add_observer(self.on_vehicle_update)
 
         self.mqtt_pub_state = TOPIC + "state"
