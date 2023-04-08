@@ -88,24 +88,20 @@ class ServiceWrapper(object):
         self.User = os.environ.get("BMW_USERNAME")
         self.Password = os.environ.get("BMW_PASSWORD")
         self.Region = REGION
-        self.CarName = os.environ.get("CAR_NAME")
+        self.VIN = os.environ.get("VIN")
 
         logging.info(f"Connecting to BMW account with username {self.User} and password {self.Password}")
-        
+
         # Get the VIN of the BMW vehicle associated with the specified car name
-        self.VIN = None
         account = MyBMWAccount(self.User, self.Password, self.Region)
-        vehicles = asyncio.run(account.get_vehicles())
-        if vehicles is None:
-            logging.error("Failed to retrieve vehicles for account")
+        try:    
+            asyncio.run(account.get_vehicles())
+        except MyBMWAccount.APIError as e:
+            logging.warning(f"MyBMW API error: {e}")
             return
 
-        for vehicle in vehicles:
-            if vehicle.name == self.CarName:
-                self.vehicle = vehicle
-                self.VIN = vehicle.vin
-                self.vehicle.add_observer(self.on_vehicle_update)
-                break
+        self.vehicle = account.getVehicle(self.VIN)
+        self.vehicle.add_observer(self.on_vehicle_update)
 
         self.mqtt_pub_state = TOPIC + "state"
         self.mqtt_pub_location = TOPIC + "location"
